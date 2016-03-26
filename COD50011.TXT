@@ -1,0 +1,331 @@
+OBJECT Codeunit 50011 Verify Table Relations
+{
+  OBJECT-PROPERTIES
+  {
+    Date=26-03-16;
+    Time=11:03:49;
+    Modified=Yes;
+    Version List=TableRelations;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      Window@1100550000 : Dialog;
+
+    PROCEDURE VerifyAllTableRelations@1100550000(LogFileName@1000000000 : Text);
+    VAR
+      TableRelation@1100550000 : Record 50010;
+    BEGIN
+      VerifySelectedTableRelations(TableRelation, LogFileName);
+    END;
+
+    PROCEDURE VerifySelectedTableRelations@1100550001(VAR TableRelation@1100550000 : Record 50010;LogFileName@1000000000 : Text);
+    VAR
+      LogFile@1000000001 : File;
+    BEGIN
+      TableRelation.FILTERGROUP(42);
+      TableRelation.SETRANGE("Test Table Relation", TRUE);
+      TableRelation.SETRANGE("From Field Class", TableRelation."From Field Class"::Normal);
+      TableRelation.SETRANGE("From Table Type", TableRelation."From Table Type"::Normal);
+      TableRelation.SETRANGE("To Table Type", TableRelation."To Table Type"::Normal);
+      TableRelation.FILTERGROUP(0);
+
+      LogFile.WRITEMODE := TRUE;
+      LogFile.TEXTMODE := TRUE;
+      LogFile.CREATE(LogFileName);
+
+      LogFile.WRITE(CURRENTDATETIME);
+      LogFile.WRITE('Starting verification...');
+      LogFile.WRITE('');
+
+      IF GUIALLOWED THEN
+        Window.OPEN(
+          'Verifying table relations...\\' +
+          'From table #1############################\' +
+          'From field #2############################\' +
+          'To table   #3############################\' +
+          'To field   #4############################\' +
+          'Value      #5############################');
+
+      IF TableRelation.FINDSET THEN
+        REPEAT
+          VerifyTableRelation(TableRelation, LogFile);
+        UNTIL TableRelation.NEXT = 0;
+
+      LogFile.WRITE(CURRENTDATETIME);
+      LogFile.WRITE('Verification complete');
+
+      IF GUIALLOWED THEN
+        Window.CLOSE;
+
+      LogFile.CLOSE;
+    END;
+
+    LOCAL PROCEDURE VerifyTableRelation@1100550004(TableRelation@1100550003 : Record 50010;VAR LogFile@1100550004 : File);
+    VAR
+      TableRelationCondition@1100550002 : Record 50011;
+      FromRecRef@1100550001 : RecordRef;
+      FromFldRef@1100550000 : FieldRef;
+    BEGIN
+      TableRelation.CALCFIELDS("From Table Name", "From Field Name", "To Table Name", "To Field Name");
+
+      // FIXME: To Field No. should probably be determined in the analysis phase.
+      // FIXME: That way, even if it it not explicitly specified, the analysis
+      // FIXME: codeunit could find the value based on the primary key, and the
+      // FIXME: verify phase could just rely on the pre-cooked data.
+
+      IF GUIALLOWED THEN BEGIN
+        Window.UPDATE(1, STRSUBSTNO('%1 %2', TableRelation."From Table ID", TableRelation."From Table Name"));
+        Window.UPDATE(2, STRSUBSTNO('%1 %2', TableRelation."From Field No.", TableRelation."From Field Name"));
+        Window.UPDATE(3, STRSUBSTNO('%1 %2', TableRelation."To Table ID", TableRelation."To Table Name"));
+        Window.UPDATE(4, STRSUBSTNO('%1 %2', TableRelation."To Field No.", TableRelation."To Field Name"));
+      END;
+
+      FromRecRef.OPEN(TableRelation."From Table ID");
+      FromRecRef.SETVIEW(STRSUBSTNO('SORTING(Field%1)', TableRelation."From Field No."));
+      FromFldRef := FromRecRef.FIELD(TableRelation."From Field No.");
+
+      ApplyTableRelationConditions(FromRecRef, TableRelation);
+
+      IF FromRecRef.FINDSET THEN
+        REPEAT
+          IF NOT IsBlankValue(FromFldRef.VALUE) THEN
+            VerifyValueExists(FromRecRef, FromFldRef.VALUE, TableRelation, LogFile);
+
+          // Jump to next distinct value
+          FromFldRef.SETRANGE(FromFldRef.VALUE);
+          FromRecRef.FINDLAST;
+          FromFldRef.SETRANGE();
+        UNTIL FromRecRef.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE VerifyValueExists@1100550016(FromRecRef@1100550004 : RecordRef;Value@1100550000 : Variant;TableRelation@1100550001 : Record 50010;VAR LogFile@1100550006 : File);
+    VAR
+      ToRecRef@1100550002 : RecordRef;
+      ToFldRef@1100550003 : FieldRef;
+      Message@1100550005 : Text;
+      ToFieldNo@1100550007 : Integer;
+    BEGIN
+      IF GUIALLOWED THEN
+        Window.UPDATE(5, FORMAT(Value));
+
+      ToRecRef.OPEN(TableRelation."To Table ID");
+      ToFieldNo := IIF(TableRelation."To Field No." <> 0, TableRelation."To Field No.", GetPrimaryKeyFieldNo(ToRecRef));
+      ToRecRef.SETVIEW(STRSUBSTNO('SORTING(Field%1)', ToFieldNo));
+      ToFldRef := ToRecRef.FIELD(ToFieldNo);
+      ToFldRef.SETRANGE(Value);
+
+      ApplyTableRelationFilters(FromRecRef, ToRecRef, TableRelation);
+
+      TableRelation.CALCFIELDS("From Field Name", "To Table Name", "To Field Name");
+
+      IF ToRecRef.ISEMPTY THEN BEGIN
+        LogFile.WRITE(STRSUBSTNO('Table: %1 (%2)', TableRelation."From Table ID", TableRelation."From Table Name"));
+        LogFile.WRITE(STRSUBSTNO('Record: %1', FromRecRef.GETPOSITION(TRUE)));
+        LogFile.WRITE(STRSUBSTNO('Field: %1 (%2)', TableRelation."From Field No.", TableRelation."From Field Name"));
+        LogFile.WRITE(STRSUBSTNO('Value: %1', Value));
+        LogFile.WRITE(STRSUBSTNO('Related table: %1 (%2)', TableRelation."To Table ID", TableRelation."To Table Name"));
+
+        IF TableRelation."To Field No." <> 0 THEN
+          LogFile.WRITE(STRSUBSTNO('Related field: %1 (%2)', TableRelation."To Field No.", TableRelation."To Field Name"));
+
+        IF ToRecRef.GETFILTERS <> '' THEN
+          LogFile.WRITE(STRSUBSTNO('Filters: %1', ToRecRef.GETFILTERS));
+
+        LogFile.WRITE('');
+      END;
+    END;
+
+    LOCAL PROCEDURE ApplyTableRelationConditions@1100550002(RecRef@1100550000 : RecordRef;TableRelation@1100550001 : Record 50010);
+    VAR
+      TableRelationCondition@1100550002 : Record 50011;
+    BEGIN
+      TableRelationCondition.SETRANGE("From Table ID", TableRelation."From Table ID");
+      TableRelationCondition.SETRANGE("From Field No.", TableRelation."From Field No.");
+      TableRelationCondition.SETRANGE("Table Relation No.", TableRelation."No.");
+
+      IF TableRelationCondition.FINDSET THEN
+        REPEAT
+          ApplyTableRelationCondition(RecRef, TableRelationCondition);
+        UNTIL TableRelationCondition.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE ApplyTableRelationCondition@1100550005(RecRef@1100550001 : RecordRef;TableRelationCondition@1100550000 : Record 50011);
+    VAR
+      FldRef@1100550002 : FieldRef;
+    BEGIN
+      FldRef := RecRef.FIELD(TableRelationCondition."Field No.");
+
+      CASE TableRelationCondition.Type OF
+        TableRelationCondition.Type::Const: FldRef.SETRANGE(TableRelationCondition.Value);
+        TableRelationCondition.Type::Filter: FldRef.SETFILTER(TableRelationCondition.Value);
+      END;
+    END;
+
+    LOCAL PROCEDURE ApplyTableRelationFilters@1100550003(FromRecRef@1100550003 : RecordRef;ToRecRef@1100550000 : RecordRef;TableRelation@1100550001 : Record 50010);
+    VAR
+      TableRelationFilter@1100550002 : Record 50012;
+    BEGIN
+      TableRelationFilter.SETRANGE("From Table ID", TableRelation."From Table ID");
+      TableRelationFilter.SETRANGE("From Field No.", TableRelation."From Field No.");
+      TableRelationFilter.SETRANGE("Table Relation No.", TableRelation."No.");
+
+      IF TableRelationFilter.FINDSET THEN
+        REPEAT
+          ApplyTableRelationFilter(FromRecRef, ToRecRef, TableRelationFilter);
+        UNTIL TableRelationFilter.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE ApplyTableRelationFilter@1100550006(FromRecRef@1100550003 : RecordRef;ToRecRef@1100550000 : RecordRef;TableRelationFilter@1100550001 : Record 50012);
+    VAR
+      FromFldRef@1100550004 : FieldRef;
+      ToFldRef@1100550002 : FieldRef;
+      FieldNo@1100550005 : Integer;
+    BEGIN
+      ToFldRef := ToRecRef.FIELD(TableRelationFilter."Field No.");
+
+      CASE TableRelationFilter.Type OF
+        TableRelationFilter.Type::Const:
+          BEGIN
+            ToFldRef.SETRANGE(TableRelationFilter.Value);
+          END;
+        TableRelationFilter.Type::Filter:
+          BEGIN
+            ToFldRef.SETFILTER(TableRelationFilter.Value);
+          END;
+        TableRelationFilter.Type::Field:
+          BEGIN
+            EVALUATE(FieldNo, TableRelationFilter.Value);
+            FromFldRef := FromRecRef.FIELD(FieldNo);
+            ToFldRef.SETRANGE(FromFldRef.VALUE);
+          END;
+      END;
+    END;
+
+    LOCAL PROCEDURE GetPrimaryKeyFieldNo@1100550012(RecRef@1100550000 : RecordRef) : Integer;
+    VAR
+      KeyRef@1100550001 : KeyRef;
+      FldRef@1100550002 : FieldRef;
+    BEGIN
+      KeyRef := RecRef.KEYINDEX(1);
+      FldRef := KeyRef.FIELDINDEX(1);
+      EXIT(FldRef.NUMBER);
+    END;
+
+    LOCAL PROCEDURE IsBlankValue@1100550010(Value@1100550002 : Variant) : Boolean;
+    BEGIN
+      CASE TRUE OF
+        Value.ISBIGINTEGER: EXIT(IsBlankBigInteger(Value));
+        Value.ISBOOLEAN: EXIT(IsBlankBoolean(Value));
+        Value.ISCHAR: EXIT(IsBlankChar(Value));
+        Value.ISCODE: EXIT(IsBlankCode(Value));
+        Value.ISDATE: EXIT(IsBlankDate(Value));
+        Value.ISDATEFORMULA: EXIT(IsBlankDateFormula(Value));
+        Value.ISDATETIME: EXIT(IsBlankDateTime(Value));
+        Value.ISDECIMAL: EXIT(IsBlankDecimal(Value));
+        Value.ISDURATION: EXIT(IsBlankDuration(Value));
+        Value.ISGUID: EXIT(IsBlankGuid(Value));
+        Value.ISINTEGER: EXIT(IsBlankInteger(Value));
+        Value.ISOPTION: EXIT(IsBlankOption(Value));
+        Value.ISRECORDID: EXIT(IsBlankRecordID(Value));
+        Value.ISTEXT: EXIT(IsBlankText(Value));
+        Value.ISTIME: EXIT(IsBlankTime(Value));
+      ELSE
+        ERROR('Unexpected variant type.');
+      END;
+    END;
+
+    LOCAL PROCEDURE IsBlankBigInteger@1100550014(Value@1100550000 : BigInteger) : Boolean;
+    BEGIN
+      EXIT(Value = 0);
+    END;
+
+    LOCAL PROCEDURE IsBlankBoolean@1100550019(Value@1100550000 : Boolean) : Boolean;
+    BEGIN
+      EXIT(NOT Value);
+    END;
+
+    LOCAL PROCEDURE IsBlankChar@1100550017(Value@1100550000 : Char) : Boolean;
+    BEGIN
+      EXIT(Value = 0);
+    END;
+
+    LOCAL PROCEDURE IsBlankCode@1100550011(Value@1100550000 : Code[1024]) : Boolean;
+    BEGIN
+      EXIT(Value = '');
+    END;
+
+    LOCAL PROCEDURE IsBlankDate@1100550013(Value@1100550000 : Date) : Boolean;
+    BEGIN
+      EXIT(Value = 0D);
+    END;
+
+    LOCAL PROCEDURE IsBlankDateFormula@1100550008(Value@1100550000 : DateFormula) : Boolean;
+    BEGIN
+      EXIT(FORMAT(Value) = '');
+    END;
+
+    LOCAL PROCEDURE IsBlankDateTime@1100550009(Value@1100550000 : DateTime) : Boolean;
+    BEGIN
+      EXIT(Value = 0DT);
+    END;
+
+    LOCAL PROCEDURE IsBlankDecimal@1100550015(Value@1100550000 : Decimal) : Boolean;
+    BEGIN
+      EXIT(Value = 0);
+    END;
+
+    LOCAL PROCEDURE IsBlankDuration@1100550021(Value@1100550000 : Duration) : Boolean;
+    BEGIN
+      EXIT(Value = 0);
+    END;
+
+    LOCAL PROCEDURE IsBlankGuid@1100550024(Value@1100550000 : GUID) : Boolean;
+    BEGIN
+      EXIT(ISNULLGUID(Value));
+    END;
+
+    LOCAL PROCEDURE IsBlankInteger@1100550027(Value@1100550000 : Integer) : Boolean;
+    BEGIN
+      EXIT(Value = 0);
+    END;
+
+    LOCAL PROCEDURE IsBlankOption@1100550029(Value@1100550000 : Option) : Boolean;
+    BEGIN
+      EXIT(Value = 0);
+    END;
+
+    LOCAL PROCEDURE IsBlankRecordID@1100550020(Value@1100550000 : RecordID) : Boolean;
+    BEGIN
+      EXIT(FORMAT(Value) = '');
+    END;
+
+    LOCAL PROCEDURE IsBlankText@1100550022(Value@1100550000 : Text) : Boolean;
+    BEGIN
+      EXIT(Value = '');
+    END;
+
+    LOCAL PROCEDURE IsBlankTime@1100550023(Value@1100550000 : Time) : Boolean;
+    BEGIN
+      EXIT(Value = 0T);
+    END;
+
+    LOCAL PROCEDURE IIF@1100550007(Condition@1100550000 : Boolean;ValueIfTrue@1100550001 : Integer;ValueIfFalse@1100550002 : Integer) : Integer;
+    BEGIN
+      CASE Condition OF
+        TRUE: EXIT(ValueIfTrue);
+        FALSE: EXIT(ValueIfFalse);
+      END;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

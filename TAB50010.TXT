@@ -1,0 +1,93 @@
+OBJECT Table 50010 Table Relation
+{
+  OBJECT-PROPERTIES
+  {
+    Date=24-03-16;
+    Time=08:03:19;
+    Modified=Yes;
+    Version List=TableRelations;
+  }
+  PROPERTIES
+  {
+    OnDelete=VAR
+               TableRelationCondition@1100550000 : Record 50011;
+               TableRelationFilter@1100550001 : Record 50012;
+             BEGIN
+               TableRelationCondition.SETRANGE("From Table ID", "From Table ID");
+               TableRelationCondition.SETRANGE("From Field No.", "From Field No.");
+               TableRelationCondition.SETRANGE("Table Relation No.", "No.");
+               TableRelationCondition.DELETEALL;
+
+               TableRelationFilter.SETRANGE("From Table ID", "From Table ID");
+               TableRelationFilter.SETRANGE("From Field No.", "From Field No.");
+               TableRelationFilter.SETRANGE("Table Relation No.", "No.");
+               TableRelationFilter.DELETEALL;
+             END;
+
+    LookupPageID=Page50010;
+    DrillDownPageID=Page50010;
+  }
+  FIELDS
+  {
+    { 1   ;   ;From Table ID       ;Integer       ;TableRelation=AllObj."Object ID" WHERE (Object Type=CONST(Table));
+                                                   BlankZero=Yes }
+    { 2   ;   ;From Field No.      ;Integer       ;TableRelation=Field.No. WHERE (TableNo=FIELD(From Table ID));
+                                                   BlankZero=Yes }
+    { 9   ;   ;No.                 ;Integer        }
+    { 10  ;   ;To Table ID         ;Integer       ;TableRelation=AllObj."Object ID" WHERE (Object Type=CONST(Table));
+                                                   BlankZero=Yes }
+    { 20  ;   ;To Field No.        ;Integer       ;TableRelation=Field.No. WHERE (TableNo=FIELD(To Table ID));
+                                                   BlankZero=Yes }
+    { 100 ;   ;Test Table Relation ;Boolean        }
+    { 110 ;   ;Validate Table Relation;Boolean     }
+    { 120 ;   ;From Field Class    ;Option        ;OptionString=[ ,Normal,FlowField,FlowFilter] }
+    { 200 ;   ;From Table Name     ;Text30        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(AllObj."Object Name" WHERE (Object Type=CONST(Table),
+                                                                                                  Object ID=FIELD(From Table ID)));
+                                                   Editable=No }
+    { 210 ;   ;From Field Name     ;Text30        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Field.FieldName WHERE (TableNo=FIELD(From Table ID),
+                                                                                             No.=FIELD(From Field No.)));
+                                                   Editable=No }
+    { 300 ;   ;To Table Name       ;Text30        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(AllObj."Object Name" WHERE (Object Type=CONST(Table),
+                                                                                                  Object ID=FIELD(To Table ID)));
+                                                   Editable=No }
+    { 310 ;   ;To Field Name       ;Text30        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Field.FieldName WHERE (TableNo=FIELD(To Table ID),
+                                                                                             No.=FIELD(To Field No.)));
+                                                   Editable=No }
+    { 400 ;   ;No. of Conditions   ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Table Relation Condition" WHERE (From Table ID=FIELD(From Table ID),
+                                                                                                       From Field No.=FIELD(From Field No.),
+                                                                                                       Table Relation No.=FIELD(No.)));
+                                                   BlankZero=Yes;
+                                                   Editable=No }
+    { 410 ;   ;No. of Filters      ;Integer       ;FieldClass=FlowField;
+                                                   CalcFormula=Count("Table Relation Filter" WHERE (From Table ID=FIELD(From Table ID),
+                                                                                                    From Field No.=FIELD(From Field No.),
+                                                                                                    Table Relation No.=FIELD(No.)));
+                                                   BlankZero=Yes;
+                                                   Editable=No }
+    { 500 ;   ;From Table Type     ;Option        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Table Metadata".TableType WHERE (ID=FIELD(From Table ID)));
+                                                   OptionString=Normal,CRM,ExternalSQL }
+    { 510 ;   ;To Table Type       ;Option        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup("Table Metadata".TableType WHERE (ID=FIELD(To Table ID)));
+                                                   OptionString=Normal,CRM,ExternalSQL }
+  }
+  KEYS
+  {
+    {    ;From Table ID,From Field No.,No.        ;Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

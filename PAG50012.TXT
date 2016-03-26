@@ -1,0 +1,45 @@
+OBJECT Page 50012 Table Relation Filters
+{
+  OBJECT-PROPERTIES
+  {
+    Date=13-02-16;
+    Time=21:35:02;
+    Version List=TableRelations;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    SourceTable=Table50012;
+    PageType=ListPart;
+  }
+  CONTROLS
+  {
+    { 1100550000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1100550001;1;Group  ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 1100550002;2;Field  ;
+                SourceExpr="Field No.";
+                Visible=False }
+
+    { 1100550003;2;Field  ;
+                SourceExpr="Field Name" }
+
+    { 1100550004;2;Field  ;
+                SourceExpr=Type }
+
+    { 1100550005;2;Field  ;
+                SourceExpr=Value }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

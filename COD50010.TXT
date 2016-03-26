@@ -1,0 +1,233 @@
+OBJECT Codeunit 50010 Analyse Table Relations
+{
+  OBJECT-PROPERTIES
+  {
+    Date=26-03-16;
+    Time=11:03:57;
+    Modified=Yes;
+    Version List=TableRelations;
+  }
+  PROPERTIES
+  {
+    OnRun=VAR
+            ObjectMetadata@1100550000 : Record 2000000071;
+          BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      NoElementMatchedXPathQuery@1100550000 : TextConst 'ENU=No element matched XPath query "%1".';
+      Window@1100550001 : Dialog;
+
+    PROCEDURE AnalyseAllTables@1100550001();
+    VAR
+      ObjectMetadata@1100550000 : Record 2000000071;
+    BEGIN
+      AnalyseSelectedTables(ObjectMetadata);
+    END;
+
+    PROCEDURE AnalyseSelectedTables@1100550002(VAR ObjectMetadata@1100550000 : Record 2000000071);
+    VAR
+      AllObj@1100550001 : Record 2000000038;
+    BEGIN
+      Reset;
+
+      ObjectMetadata.FILTERGROUP(100);
+      ObjectMetadata.SETRANGE("Object Type", ObjectMetadata."Object Type"::Table);
+      ObjectMetadata.FILTERGROUP(0);
+
+      IF GUIALLOWED THEN
+        Window.OPEN(
+          'Analysing table relations...\\' +
+          'Table #1############################\' +
+          'Field #2############################');
+
+      IF ObjectMetadata.FINDSET THEN
+        REPEAT
+          IF GUIALLOWED THEN BEGIN
+            AllObj.GET(AllObj."Object Type"::Table, ObjectMetadata."Object ID");
+            Window.UPDATE(1, STRSUBSTNO('%1 %2', AllObj."Object ID", AllObj."Object Name"));
+          END;
+
+          AnalyseTable(ObjectMetadata);
+        UNTIL ObjectMetadata.NEXT = 0;
+
+      IF GUIALLOWED THEN
+        Window.CLOSE();
+    END;
+
+    LOCAL PROCEDURE AnalyseTable@1100550006(ObjectMetadata@1100550000 : Record 2000000071);
+    VAR
+      XmlDocument@1100550001 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlDocument";
+      InStream@1100550002 : InStream;
+    BEGIN
+      ObjectMetadata.CALCFIELDS(Metadata);
+      ObjectMetadata.Metadata.CREATEINSTREAM(InStream);
+
+      XmlDocument := XmlDocument.XmlDocument();
+      XmlDocument.Load(InStream);
+
+      AnalyseTableMetadata(XmlDocument, ObjectMetadata."Object ID");
+    END;
+
+    LOCAL PROCEDURE AnalyseTableMetadata@1100550014(XmlDocument@1100550000 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlDocument";FromTableID@1100550005 : Integer);
+    VAR
+      XmlNamespaceManager@1100550002 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNamespaceManager";
+      XmlNodeList@1100550001 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNodeList";
+      XmlElement@1100550003 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlElement";
+      XPathQuery@1100550004 : Text;
+    BEGIN
+      XmlNamespaceManager := XmlNamespaceManager.XmlNamespaceManager(XmlDocument.NameTable);
+      XmlNamespaceManager.AddNamespace('nav', 'urn:schemas-microsoft-com:dynamics:NAV:MetaObjects');
+
+      XmlNodeList := XmlDocument.SelectNodes('nav:MetaTable/nav:Fields/nav:Field', XmlNamespaceManager);
+
+      FOREACH XmlElement IN XmlNodeList DO
+        AnalyseFieldMetadata(XmlElement, XmlNamespaceManager, FromTableID);
+    END;
+
+    LOCAL PROCEDURE AnalyseFieldMetadata@1100550022(FieldElement@1100550000 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlElement";XmlNamespaceManager@1100550001 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNamespaceManager";FromTableID@1100550004 : Integer);
+    VAR
+      XmlNodeList@1100550003 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNodeList";
+      XmlElement@1100550005 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlElement";
+      XPathQuery@1100550002 : Text;
+      FromFieldName@1100550011 : Text;
+      FromFieldClass@1100550010 : ' ,Normal,FlowField,FlowFilter';
+      FromFieldNo@1100550006 : Integer;
+      TableRelationNo@1100550007 : Integer;
+      ValidateTableRelation@1100550008 : Boolean;
+      TestTableRelation@1100550009 : Boolean;
+    BEGIN
+      ValidateTableRelation := FieldElement.GetAttribute('ValidateTableRelation') = '1';
+      TestTableRelation := FieldElement.GetAttribute('TestTableRelation') = '1';
+
+      XmlNodeList := FieldElement.SelectNodes('nav:TableRelations', XmlNamespaceManager);
+
+      IF XmlNodeList.Count <> 0 THEN BEGIN
+        FromFieldNo := AttributeValueAsInteger(FieldElement, 'ID');
+        FromFieldName := FieldElement.GetAttribute('Name');
+
+        IF GUIALLOWED THEN
+          Window.UPDATE(2, STRSUBSTNO('%1 %2', FromFieldNo, FromFieldName));
+
+        EVALUATE(FromFieldClass, FieldElement.GetAttribute('FieldClass'));
+
+        FOREACH XmlElement IN XmlNodeList DO
+          AnalyseTableRelation(XmlElement, XmlNamespaceManager, FromTableID, FromFieldNo, TableRelationNo, FromFieldClass, ValidateTableRelation, TestTableRelation);
+      END;
+    END;
+
+    LOCAL PROCEDURE AnalyseTableRelation@1100550031(TableRelationElement@1100550004 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlElement";XmlNamespaceManager@1100550005 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNamespaceManager";FromTableID@1100550001 : Integer;FromFieldNo@1100550002 : Integer;VAR TableRelationNo@1100550003 : Integer;FromFieldClass@1100550008 : Option;ValidateTableRelation@1100550006 : Boolean;TestTableRelation@1100550007 : Boolean);
+    VAR
+      TableRelation@1100550000 : Record 50010;
+    BEGIN
+      TableRelationNo += 1;
+
+      TableRelation."From Table ID"  := FromTableID;
+      TableRelation."From Field No." := FromFieldNo;
+      TableRelation."No." := TableRelationNo;
+      TableRelation."From Field Class" := FromFieldClass;
+      TableRelation."To Table ID" := AttributeValueAsInteger(TableRelationElement, 'TableID');
+      TableRelation."To Field No." := AttributeValueAsInteger(TableRelationElement, 'FieldID');
+      TableRelation."Test Table Relation" := TestTableRelation;
+      TableRelation."Validate Table Relation" := ValidateTableRelation;
+      TableRelation.INSERT;
+
+      AnalyseTableRelationConditions(TableRelationElement, XmlNamespaceManager, FromTableID, FromFieldNo, TableRelationNo);
+      AnalyseTableRelationFilters(TableRelationElement, XmlNamespaceManager, FromTableID, FromFieldNo, TableRelationNo, TableRelation."To Table ID");
+    END;
+
+    LOCAL PROCEDURE AnalyseTableRelationConditions@1100550005(TableRelationElement@1100550005 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlElement";XmlNamespaceManager@1100550004 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNamespaceManager";FromTableID@1100550003 : Integer;FromFieldNo@1100550002 : Integer;TableRelationNo@1100550001 : Integer);
+    VAR
+      XmlNodeList@1100550007 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNodeList";
+      XmlElement@1100550000 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlElement";
+      ConditionNo@1100550006 : Integer;
+    BEGIN
+      XmlNodeList := TableRelationElement.SelectNodes('nav:Conditions', XmlNamespaceManager);
+
+      FOREACH XmlElement IN XmlNodeList DO
+        AnalyseTableRelationCondition(XmlElement, XmlNamespaceManager, FromTableID, FromFieldNo, TableRelationNo, ConditionNo);
+    END;
+
+    LOCAL PROCEDURE AnalyseTableRelationCondition@1100550004(ConditionElement@1100550000 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlElement";XmlNamespaceManager@1100550002 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNamespaceManager";FromTableID@1100550001 : Integer;FromFieldNo@1100550003 : Integer;TableRelationNo@1100550004 : Integer;VAR ConditionNo@1100550006 : Integer);
+    VAR
+      TableRelationCondition@1100550005 : Record 50011;
+    BEGIN
+      ConditionNo += 1;
+
+      TableRelationCondition."From Table ID" := FromTableID;
+      TableRelationCondition."From Field No." := FromFieldNo;
+      TableRelationCondition."Table Relation No." := TableRelationNo;
+      TableRelationCondition."No." := ConditionNo;
+      TableRelationCondition."Field No." := AttributeValueAsInteger(ConditionElement, 'FieldID');
+      EVALUATE(TableRelationCondition.Type, ConditionElement.GetAttribute('ConditionType'));
+      TableRelationCondition.Value := ConditionElement.GetAttribute('ConditionValue');
+      TableRelationCondition.INSERT;
+    END;
+
+    LOCAL PROCEDURE AnalyseTableRelationFilters@1100550010(TableRelationElement@1100550004 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlElement";XmlNamespaceManager@1100550003 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNamespaceManager";FromTableID@1100550002 : Integer;FromFieldNo@1100550001 : Integer;TableRelationNo@1100550000 : Integer;ToTableID@1100550008 : Integer);
+    VAR
+      XmlNodeList@1100550007 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNodeList";
+      XmlElement@1100550006 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlElement";
+      FilterNo@1100550005 : Integer;
+    BEGIN
+      XmlNodeList := TableRelationElement.SelectNodes('nav:Filters', XmlNamespaceManager);
+
+      FOREACH XmlElement IN XmlNodeList DO
+        AnalyseTableRelationFilter(XmlElement, XmlNamespaceManager, FromTableID, FromFieldNo, TableRelationNo, ToTableID, FilterNo);
+    END;
+
+    LOCAL PROCEDURE AnalyseTableRelationFilter@1100550011(FilterElement@1100550005 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlElement";XmlNamespaceManager@1100550004 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNamespaceManager";FromTableID@1100550003 : Integer;FromFieldNo@1100550002 : Integer;TableRelationNo@1100550001 : Integer;ToTableID@1100550007 : Integer;VAR FilterNo@1100550000 : Integer);
+    VAR
+      TableRelationFilter@1100550006 : Record 50012;
+    BEGIN
+      FilterNo += 1;
+
+      TableRelationFilter."From Table ID" := FromTableID;
+      TableRelationFilter."From Field No." := FromFieldNo;
+      TableRelationFilter."Table Relation No." := TableRelationNo;
+      TableRelationFilter."No." := FilterNo;
+      TableRelationFilter."Field No." := AttributeValueAsInteger(FilterElement, 'FieldID');
+      EVALUATE(TableRelationFilter.Type, FilterElement.GetAttribute('FilterType'));
+      TableRelationFilter.Value := FilterElement.GetAttribute('FilterValue');
+      TableRelationFilter."To Table ID" := ToTableID;
+      TableRelationFilter.INSERT;
+    END;
+
+    LOCAL PROCEDURE ElementValueAsText@1100550000(ParentElement@1100550000 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlElement";XmlNamespaceManager@1100550002 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlNamespaceManager";XPathQuery@1100550001 : Text;Optional@1100550005 : Boolean;DefaultValue@1100550004 : Text) : Text;
+    VAR
+      XmlElement@1100550003 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlElement";
+    BEGIN
+      XmlElement := ParentElement.SelectSingleNode(XPathQuery, XmlNamespaceManager);
+
+      CASE TRUE OF
+        NOT ISNULL(XmlElement): EXIT(XmlElement.InnerText);
+        Optional: EXIT(DefaultValue);
+      ELSE
+        ERROR(NoElementMatchedXPathQuery, XPathQuery);
+      END;
+    END;
+
+    LOCAL PROCEDURE AttributeValueAsInteger@1100550003(XmlElement@1100550000 : DotNet "'System.Xml, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.System.Xml.XmlElement";AttributeName@1100550001 : Text) Result : Integer;
+    BEGIN
+      EVALUATE(Result, XmlElement.GetAttribute(AttributeName));
+    END;
+
+    PROCEDURE Reset@1100550007();
+    VAR
+      TableRelation@1100550000 : Record 50010;
+      TableRelationCondition@1100550001 : Record 50011;
+      TableRelationFilter@1100550002 : Record 50012;
+    BEGIN
+      TableRelation.DELETEALL;
+      TableRelationCondition.DELETEALL;
+      TableRelationFilter.DELETEALL;
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

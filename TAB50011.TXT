@@ -1,0 +1,41 @@
+OBJECT Table 50011 Table Relation Condition
+{
+  OBJECT-PROPERTIES
+  {
+    Date=12-03-16;
+    Time=20:08:28;
+    Version List=TableRelations;
+  }
+  PROPERTIES
+  {
+  }
+  FIELDS
+  {
+    { 1   ;   ;From Table ID       ;Integer        }
+    { 2   ;   ;From Field No.      ;Integer        }
+    { 3   ;   ;Table Relation No.  ;Integer        }
+    { 9   ;   ;No.                 ;Integer        }
+    { 10  ;   ;Field No.           ;Integer        }
+    { 20  ;   ;Type                ;Option        ;OptionString=Const,Filter }
+    { 30  ;   ;Value               ;Text250        }
+    { 100 ;   ;Field Name          ;Text30        ;FieldClass=FlowField;
+                                                   CalcFormula=Lookup(Field.FieldName WHERE (TableNo=FIELD(From Table ID),
+                                                                                             No.=FIELD(Field No.)));
+                                                   Editable=No }
+  }
+  KEYS
+  {
+    {    ;From Table ID,From Field No.,Table Relation No.,No.;
+                                                   Clustered=Yes }
+  }
+  FIELDGROUPS
+  {
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+

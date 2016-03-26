@@ -1,0 +1,118 @@
+OBJECT Page 50010 Table Relations
+{
+  OBJECT-PROPERTIES
+  {
+    Date=18-03-16;
+    Time=08:08:50;
+    Version List=TableRelations;
+  }
+  PROPERTIES
+  {
+    Editable=No;
+    LinksAllowed=No;
+    SourceTable=Table50010;
+    PageType=List;
+    ActionList=ACTIONS
+    {
+      { 1100550007;  ;ActionContainer;
+                      ActionContainerType=ActionItems }
+      { 1100550008;1 ;Action    ;
+                      CaptionML=ENU=Update Table Relations;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=Relationship;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 CODEUNIT.RUN(CODEUNIT::"Analyse Table Relations");
+                               END;
+                                }
+      { 1100550011;1 ;Action    ;
+                      CaptionML=ENU=Verify Table  Relations;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=TestDatabase;
+                      PromotedCategory=Process;
+                      OnAction=BEGIN
+                                 CODEUNIT.RUN(CODEUNIT::"Verify Table Relations");
+                               END;
+                                }
+    }
+  }
+  CONTROLS
+  {
+    { 1000000000;0;Container;
+                ContainerType=ContentArea }
+
+    { 1000000001;1;Group  ;
+                Name=Group;
+                GroupType=Repeater }
+
+    { 1000000002;2;Field  ;
+                SourceExpr="From Table ID" }
+
+    { 1100550002;2;Field  ;
+                SourceExpr="From Table Name" }
+
+    { 1000000003;2;Field  ;
+                SourceExpr="From Field No." }
+
+    { 1100550003;2;Field  ;
+                SourceExpr="From Field Name" }
+
+    { 1100550012;2;Field  ;
+                SourceExpr="From Field Class" }
+
+    { 1000000005;2;Field  ;
+                SourceExpr="To Table ID" }
+
+    { 1100550004;2;Field  ;
+                SourceExpr="To Table Name" }
+
+    { 1000000006;2;Field  ;
+                SourceExpr="To Field No." }
+
+    { 1100550005;2;Field  ;
+                SourceExpr="To Field Name" }
+
+    { 1000000007;2;Field  ;
+                SourceExpr="Test Table Relation" }
+
+    { 1000000008;2;Field  ;
+                SourceExpr="Validate Table Relation" }
+
+    { 1100550009;2;Field  ;
+                SourceExpr="No. of Conditions" }
+
+    { 1100550010;2;Field  ;
+                SourceExpr="No. of Filters" }
+
+    { 1100550000;;Container;
+                ContainerType=FactBoxArea }
+
+    { 1100550001;1;Part   ;
+                CaptionML=ENU=Conditions;
+                SubPageView=SORTING(From Table ID,From Field No.,Table Relation No.,No.);
+                SubPageLink=From Table ID=FIELD(From Table ID),
+                            From Field No.=FIELD(From Field No.),
+                            Table Relation No.=FIELD(No.);
+                PagePartID=Page50011;
+                PartType=Page }
+
+    { 1100550006;1;Part   ;
+                CaptionML=ENU=Filters;
+                SubPageView=SORTING(From Table ID,From Field No.,Table Relation No.,No.);
+                SubPageLink=From Table ID=FIELD(From Table ID),
+                            From Field No.=FIELD(From Field No.),
+                            Table Relation No.=FIELD(No.);
+                PagePartID=Page50012;
+                PartType=Page }
+
+  }
+  CODE
+  {
+
+    BEGIN
+    END.
+  }
+}
+
