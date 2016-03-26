@@ -3,15 +3,13 @@ OBJECT Codeunit 50010 Analyse Table Relations
   OBJECT-PROPERTIES
   {
     Date=26-03-16;
-    Time=11:03:57;
+    Time=11:44:30;
     Modified=Yes;
     Version List=TableRelations;
   }
   PROPERTIES
   {
-    OnRun=VAR
-            ObjectMetadata@1100550000 : Record 2000000071;
-          BEGIN
+    OnRun=BEGIN
           END;
 
   }
