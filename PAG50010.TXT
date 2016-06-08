@@ -35,7 +35,7 @@ OBJECT Page 50010 Table Relations
                       OnAction=VAR
                                  VerifyTableRelations@60000 : Codeunit 50011;
                                BEGIN
-                                 VerifyTableRelations.TestRun_VerifyAllTableRelations;
+                                 VerifyTableRelations.CallVerifyAllTableRelations_ToFile;
                                END;
                                 }
       { 60000   ;1   ;Action    ;
@@ -49,7 +49,7 @@ OBJECT Page 50010 Table Relations
                                  VerifyTableRelations@60000 : Codeunit 50011;
                                BEGIN
                                  CurrPage.SETSELECTIONFILTER(TableRelation);
-                                 VerifyTableRelations.TestRun_VerifySelectedlTableRelations(TableRelation);
+                                 VerifyTableRelations.CallVerifySelectedlTableRelations_ToFile(TableRelation);
                                END;
                                 }
       { 60001   ;1   ;Action    ;
@@ -63,7 +63,7 @@ OBJECT Page 50010 Table Relations
                                  VerifyTableRelations@60000 : Codeunit 50011;
                                BEGIN
                                  TableRelation.COPY(Rec);
-                                 VerifyTableRelations.TestRun_VerifySelectedlTableRelations(TableRelation);
+                                 VerifyTableRelations.CallVerifySelectedlTableRelations_ToFile(TableRelation);
                                END;
                                 }
     }

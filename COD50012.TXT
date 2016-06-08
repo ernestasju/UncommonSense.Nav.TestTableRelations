@@ -1,0 +1,87 @@
+OBJECT Codeunit 50012 Logging Management
+{
+  OBJECT-PROPERTIES
+  {
+    Date=16-06-08;
+    Time=11:17:17;
+    Modified=Yes;
+    Version List=TableRelations;
+  }
+  PROPERTIES
+  {
+    OnRun=BEGIN
+          END;
+
+  }
+  CODE
+  {
+    VAR
+      FileMgt@1004 : Codeunit 419;
+      Target@1000 : 'Screen,File';
+      FileName@1001 : Text[250];
+      ServerFileName@1005 : Text[250];
+      Started@1002 : Boolean;
+      File_@1003 : File;
+
+    PROCEDURE SetLogToFile@2(FileName_@1000 : Text[250]);
+    BEGIN
+      Target := Target::File;
+      FileName := FileName_;
+    END;
+
+    PROCEDURE SetLogToScreen@3();
+    BEGIN
+      Target := Target::Screen;
+    END;
+
+    PROCEDURE Start@1();
+    BEGIN
+      CASE Target OF
+        Target::File:
+          OpenFile;
+      END;
+    END;
+
+    PROCEDURE Finish@4();
+    BEGIN
+      CASE Target OF
+        Target::File:
+          CloseFile;
+      END;
+    END;
+
+    PROCEDURE Log@9(Message_@1000 : Text);
+    BEGIN
+      CASE Target OF
+        Target::File:
+          File_.WRITE(Message_);
+        Target::Screen:
+          MESSAGE(Message_);
+      END;
+    END;
+
+    LOCAL PROCEDURE "--"@10();
+    BEGIN
+    END;
+
+    LOCAL PROCEDURE OpenFile@5();
+    BEGIN
+      ServerFileName := FileMgt.ServerTempFileName('.log');
+
+      File_.WRITEMODE := TRUE;
+      File_.TEXTMODE := TRUE;
+      File_.CREATE(FileName);
+    END;
+
+    LOCAL PROCEDURE CloseFile@6();
+    BEGIN
+      File_.CLOSE;
+
+      FileMgt.DownloadToFile(ServerFileName, FileName);
+    END;
+
+    BEGIN
+    END.
+  }
+}
+

@@ -2,8 +2,8 @@ OBJECT Codeunit 50011 Verify Table Relations
 {
   OBJECT-PROPERTIES
   {
-    Date=26-03-16;
-    Time=11:03:49;
+    Date=16-06-08;
+    Time=11:26:40;
     Modified=Yes;
     Version List=TableRelations;
   }
@@ -17,17 +17,16 @@ OBJECT Codeunit 50011 Verify Table Relations
   {
     VAR
       Window@1100550000 : Dialog;
+      LoggingMgt@1000 : Codeunit 50012;
 
-    PROCEDURE VerifyAllTableRelations@1100550000(LogFileName@1000000000 : Text);
+    PROCEDURE VerifyAllTableRelations@1100550000();
     VAR
       TableRelation@1100550000 : Record 50010;
     BEGIN
-      VerifySelectedTableRelations(TableRelation, LogFileName);
+      VerifySelectedTableRelations(TableRelation);
     END;
 
-    PROCEDURE VerifySelectedTableRelations@1100550001(VAR TableRelation@1100550000 : Record 50010;LogFileName@1000000000 : Text);
-    VAR
-      LogFile@1000000001 : File;
+    PROCEDURE VerifySelectedTableRelations@1100550001(VAR TableRelation@1100550000 : Record 50010);
     BEGIN
       TableRelation.FILTERGROUP(42);
       TableRelation.SETRANGE("Test Table Relation", TRUE);
@@ -36,13 +35,19 @@ OBJECT Codeunit 50011 Verify Table Relations
       TableRelation.SETRANGE("To Table Type", TableRelation."To Table Type"::Normal);
       TableRelation.FILTERGROUP(0);
 
-      LogFile.WRITEMODE := TRUE;
-      LogFile.TEXTMODE := TRUE;
-      LogFile.CREATE(LogFileName);
+      //LogFile.WRITEMODE := TRUE;
+      //LogFile.TEXTMODE := TRUE;
+      //LogFile.CREATE(LogFileName);
 
-      LogFile.WRITE(CURRENTDATETIME);
-      LogFile.WRITE('Starting verification...');
-      LogFile.WRITE('');
+      LoggingMgt.Start;
+
+      //LogFile.WRITE(CURRENTDATETIME);
+      //LogFile.WRITE('Starting verification...');
+      //LogFile.WRITE('');
+      LoggingMgt.Log(FORMAT(CURRENTDATETIME));
+      LoggingMgt.Log('Starting verification...');
+      LoggingMgt.Log('');
+
 
       IF GUIALLOWED THEN
         Window.OPEN(
@@ -55,19 +60,19 @@ OBJECT Codeunit 50011 Verify Table Relations
 
       IF TableRelation.FINDSET THEN
         REPEAT
-          VerifyTableRelation(TableRelation, LogFile);
+          VerifyTableRelation(TableRelation);
         UNTIL TableRelation.NEXT = 0;
 
-      LogFile.WRITE(CURRENTDATETIME);
-      LogFile.WRITE('Verification complete');
+      LoggingMgt.Log(FORMAT(CURRENTDATETIME));
+      LoggingMgt.Log('Verification complete');
 
       IF GUIALLOWED THEN
         Window.CLOSE;
 
-      LogFile.CLOSE;
+      LoggingMgt.Finish;
     END;
 
-    LOCAL PROCEDURE VerifyTableRelation@1100550004(TableRelation@1100550003 : Record 50010;VAR LogFile@1100550004 : File);
+    LOCAL PROCEDURE VerifyTableRelation@1100550004(TableRelation@1100550003 : Record 50010);
     VAR
       TableRelationCondition@1100550002 : Record 50011;
       FromRecRef@1100550001 : RecordRef;
@@ -96,7 +101,7 @@ OBJECT Codeunit 50011 Verify Table Relations
       IF FromRecRef.FINDSET THEN
         REPEAT
           IF NOT IsBlankValue(FromFldRef.VALUE) THEN
-            VerifyValueExists(FromRecRef, FromFldRef, FromFldRef.VALUE, TableRelation, LogFile);
+            VerifyValueExists(FromRecRef, FromFldRef, FromFldRef.VALUE, TableRelation);
 
           // Jump to next distinct value
           FromFldRef.SETRANGE(FromFldRef.VALUE);
@@ -105,7 +110,7 @@ OBJECT Codeunit 50011 Verify Table Relations
         UNTIL FromRecRef.NEXT = 0;
     END;
 
-    LOCAL PROCEDURE VerifyValueExists@1100550016(FromRecRef@1100550004 : RecordRef;FromFldRef@60000 : FieldRef;Value@1100550000 : Variant;TableRelation@1100550001 : Record 50010;VAR LogFile@1100550006 : File);
+    LOCAL PROCEDURE VerifyValueExists@1100550016(FromRecRef@1100550004 : RecordRef;FromFldRef@60000 : FieldRef;Value@1100550000 : Variant;TableRelation@1100550001 : Record 50010);
     VAR
       ToRecRef@1100550002 : RecordRef;
       ToFldRef@1100550003 : FieldRef;
@@ -119,7 +124,7 @@ OBJECT Codeunit 50011 Verify Table Relations
       ToFieldNo := IIF(TableRelation."To Field No." <> 0, TableRelation."To Field No.", GetPrimaryKeyFieldNo(ToRecRef));
       ToRecRef.SETVIEW(STRSUBSTNO('SORTING(Field%1)', ToFieldNo));
       ToFldRef := ToRecRef.FIELD(ToFieldNo);
-      IF NOT CheckTypes(LogFile, FromFldRef, ToFldRef) THEN
+      IF NOT CheckTypes(FromFldRef, ToFldRef) THEN
         EXIT;
       IF (STRPOS(FromFldRef.NAME, 'Filter') > 0) AND (FORMAT(FromFldRef.TYPE) = 'Text') THEN
         ToFldRef.SETFILTER(Value)
@@ -131,7 +136,7 @@ OBJECT Codeunit 50011 Verify Table Relations
       TableRelation.CALCFIELDS("From Field Name", "To Table Name", "To Field Name");
 
       IF ToRecRef.ISEMPTY THEN
-        Log(LogFile, 'Record was not found in related table.', FromFldRef, ToFldRef);
+        Log('Record was not found in related table.', FromFldRef, ToFldRef);
     END;
 
     LOCAL PROCEDURE ApplyTableRelationConditions@1100550002(RecRef@1100550000 : RecordRef;TableRelation@1100550001 : Record 50010);
@@ -316,7 +321,7 @@ OBJECT Codeunit 50011 Verify Table Relations
       END;
     END;
 
-    PROCEDURE TestRun_VerifyAllTableRelations@60000();
+    PROCEDURE CallVerifyAllTableRelations_ToFile@60000();
     VAR
       FileMgt@60000 : Codeunit 419;
       ClientFileName@60001 : Text[250];
@@ -326,12 +331,13 @@ OBJECT Codeunit 50011 Verify Table Relations
       ClientFileName := FileMgt.SaveFileDialog('', 'Verify Table Relations.log', '');
       IF ClientFileName = '' THEN
         ERROR('');
-      VerifyAllTableRelations(ServerFileName);
+      LoggingMgt.SetLogToFile(ClientFileName);
+      VerifyAllTableRelations;
       FileMgt.DownloadToFile(ServerFileName, ClientFileName);
       MESSAGE('Log file saved to:\%1',ClientFileName);
     END;
 
-    PROCEDURE TestRun_VerifySelectedlTableRelations@60003(VAR TableRelation@60003 : Record 50010);
+    PROCEDURE CallVerifySelectedlTableRelations_ToFile@60003(VAR TableRelation@60003 : Record 50010);
     VAR
       FileMgt@60000 : Codeunit 419;
       ClientFileName@60001 : Text[250];
@@ -341,12 +347,25 @@ OBJECT Codeunit 50011 Verify Table Relations
       ClientFileName := FileMgt.SaveFileDialog('', 'Verify Table Relations.log', '');
       IF ClientFileName = '' THEN
         ERROR('');
-      VerifySelectedTableRelations(TableRelation, ServerFileName);
+      LoggingMgt.SetLogToFile(ClientFileName);
+      VerifySelectedTableRelations(TableRelation);
       FileMgt.DownloadToFile(ServerFileName, ClientFileName);
       MESSAGE('Log file saved to:\%1',ClientFileName);
     END;
 
-    LOCAL PROCEDURE CheckTypes@60001(VAR LogFile@60006 : File;FromFldRef@60000 : FieldRef;ToFldRef@60001 : FieldRef) : Boolean;
+    PROCEDURE CallVerifyAllTableRelations_ToConsole@13();
+    BEGIN
+      LoggingMgt.SetLogToScreen;
+      VerifyAllTableRelations;
+    END;
+
+    PROCEDURE CallVerifySelectedlTableRelations_ToConsole@12(VAR TableRelation@60003 : Record 50010);
+    BEGIN
+      LoggingMgt.SetLogToScreen;
+      VerifySelectedTableRelations(TableRelation);
+    END;
+
+    LOCAL PROCEDURE CheckTypes@60001(FromFldRef@60000 : FieldRef;ToFldRef@60001 : FieldRef) : Boolean;
     VAR
       FromType@60004 : Text;
       ToType@60005 : Text;
@@ -356,31 +375,31 @@ OBJECT Codeunit 50011 Verify Table Relations
 
       IF FromType <> ToType THEN
         IF NOT ((STRPOS(FromFldRef.NAME, 'Filter') > 0) AND (FromType = 'Text') AND (ToType = 'Code') AND (FromFldRef.LENGTH >= ToFldRef.LENGTH)) THEN BEGIN
-          Log(LogFile, 'Type mismatch', FromFldRef, ToFldRef);
+          Log('Type mismatch', FromFldRef, ToFldRef);
           EXIT(FALSE);
         END;
       EXIT(TRUE);
     END;
 
-    LOCAL PROCEDURE Log@60002(VAR LogFile@60003 : File;Message@60000 : Text;FromFldRef@60001 : FieldRef;ToFldRef@60002 : FieldRef);
+    LOCAL PROCEDURE Log@60002(Message@60000 : Text;FromFldRef@60001 : FieldRef;ToFldRef@60002 : FieldRef);
     BEGIN
-      LogFile.WRITE(Message);
-      LogFile.WRITE(STRSUBSTNO('Table: %1 (%2)', FromFldRef.RECORD.NUMBER, FromFldRef.RECORD.NAME));
-      LogFile.WRITE(STRSUBSTNO('Record: %1', FromFldRef.RECORD.GETPOSITION(TRUE)));
-      LogFile.WRITE(STRSUBSTNO('Field: %1 (%2)', FromFldRef.NUMBER, FromFldRef.NAME));
-      LogFile.WRITE(STRSUBSTNO('Type: %1 (%2)', FromFldRef.TYPE, FromFldRef.LENGTH));
-      LogFile.WRITE(STRSUBSTNO('Value: %1', FromFldRef.VALUE));
-      LogFile.WRITE(STRSUBSTNO('Related table: %1 (%2)', ToFldRef.RECORD.NUMBER, ToFldRef.RECORD.NAME));
+      LoggingMgt.Log(Message);
+      LoggingMgt.Log(STRSUBSTNO('Table: %1 (%2)', FromFldRef.RECORD.NUMBER, FromFldRef.RECORD.NAME));
+      LoggingMgt.Log(STRSUBSTNO('Record: %1', FromFldRef.RECORD.GETPOSITION(TRUE)));
+      LoggingMgt.Log(STRSUBSTNO('Field: %1 (%2)', FromFldRef.NUMBER, FromFldRef.NAME));
+      LoggingMgt.Log(STRSUBSTNO('Type: %1 (%2)', FromFldRef.TYPE, FromFldRef.LENGTH));
+      LoggingMgt.Log(STRSUBSTNO('Value: %1', FromFldRef.VALUE));
+      LoggingMgt.Log(STRSUBSTNO('Related table: %1 (%2)', ToFldRef.RECORD.NUMBER, ToFldRef.RECORD.NAME));
 
       IF ToFldRef.NUMBER <> 0 THEN BEGIN
-        LogFile.WRITE(STRSUBSTNO('Related field: %1 (%2)', ToFldRef.NUMBER, ToFldRef.NAME));
-        LogFile.WRITE(STRSUBSTNO('Related type: %1 (%2)', ToFldRef.TYPE, ToFldRef.LENGTH));
+        LoggingMgt.Log(STRSUBSTNO('Related field: %1 (%2)', ToFldRef.NUMBER, ToFldRef.NAME));
+        LoggingMgt.Log(STRSUBSTNO('Related type: %1 (%2)', ToFldRef.TYPE, ToFldRef.LENGTH));
       END;
 
       IF ToFldRef.RECORD.GETFILTERS <> '' THEN
-        LogFile.WRITE(STRSUBSTNO('Filters: %1', ToFldRef.RECORD.GETFILTERS));
+        LoggingMgt.Log(STRSUBSTNO('Filters: %1', ToFldRef.RECORD.GETFILTERS));
 
-      LogFile.WRITE('');
+      LoggingMgt.Log('');
     END;
 
     BEGIN
