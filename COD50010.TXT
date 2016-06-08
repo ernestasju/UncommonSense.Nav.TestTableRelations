@@ -10,6 +10,7 @@ OBJECT Codeunit 50010 Analyse Table Relations
   PROPERTIES
   {
     OnRun=BEGIN
+            AnalyseAllTables;
           END;
 
   }

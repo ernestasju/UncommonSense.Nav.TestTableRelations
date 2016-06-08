@@ -32,8 +32,38 @@ OBJECT Page 50010 Table Relations
                       PromotedIsBig=Yes;
                       Image=TestDatabase;
                       PromotedCategory=Process;
-                      OnAction=BEGIN
-                                 CODEUNIT.RUN(CODEUNIT::"Verify Table Relations");
+                      OnAction=VAR
+                                 VerifyTableRelations@60000 : Codeunit 50011;
+                               BEGIN
+                                 VerifyTableRelations.TestRun_VerifyAllTableRelations;
+                               END;
+                                }
+      { 60000   ;1   ;Action    ;
+                      CaptionML=ENU=Verify Selected Table  Relations;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=TestDatabase;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 TableRelation@60001 : Record 50010;
+                                 VerifyTableRelations@60000 : Codeunit 50011;
+                               BEGIN
+                                 CurrPage.SETSELECTIONFILTER(TableRelation);
+                                 VerifyTableRelations.TestRun_VerifySelectedlTableRelations(TableRelation);
+                               END;
+                                }
+      { 60001   ;1   ;Action    ;
+                      CaptionML=ENU=Verify Filtered Table  Relations;
+                      Promoted=Yes;
+                      PromotedIsBig=Yes;
+                      Image=TestDatabase;
+                      PromotedCategory=Process;
+                      OnAction=VAR
+                                 TableRelation@60001 : Record 50010;
+                                 VerifyTableRelations@60000 : Codeunit 50011;
+                               BEGIN
+                                 TableRelation.COPY(Rec);
+                                 VerifyTableRelations.TestRun_VerifySelectedlTableRelations(TableRelation);
                                END;
                                 }
     }
